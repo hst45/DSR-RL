@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torch.autograd import Variable
+from non_local import _NonLocalBlockND, _NonLocalBlock2D
 
 __all__ = ['DSRRL']
 
@@ -63,16 +64,22 @@ class DSRRL(nn.Module):
 
         self.fc = nn.Linear(hid_dim*2, 1)
 
-        self.att = SelfAttention(input_size=in_dim, output_size=in_dim)
+        self.att = _NonLocalBlockND(in_channels = in_dim)
+        # self.att = _NonLocalBlock2D(in_channels = 1)
 
     def forward(self, x):
         h, _ = self.rnn(x)
 
-        m = x.shape[2] # Feature size
-        x = x.view(-1, m)
+        # self-attention
+        # n = x.shape[2]
+        # x = x.view(-1, n)
+        # att_score, att_weights_ = self.att(x)
 
+        # output of non-local: [1, 1024, num_steps]
+        x = x.transpose(1, 2)
         att_score, att_weights_ = self.att(x)
-        
+        att_score = att_score.transpose(1, 2).squeeze()
+
         out_lay = att_score + h
         p = torch.sigmoid(self.fc(out_lay))
 
